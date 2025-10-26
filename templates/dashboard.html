@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+  Dashboard - Tsuru Groups
+{% endblock %}
+
+{% block content %}
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h1>Bem-vindo, {{ user.first_name }}!</h1>
+            <p class="text-muted mb-0">Aqui está um resumo da sua conta</p>
+          </div>
+          <div>
+            {% if user.current_subscription %}
+              <span class="badge bg-success fs-6">
+                <i class="fas fa-crown me-1"></i>
+                {{ user.current_subscription.plan.name }}
+              </span>
+            {% else %}
+              <a href="{% url 'subscriptions:plans' %}" class="btn btn-primary"><i class="fas fa-upgrade me-2"></i>Escolher Plano</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+      <div class="col-lg-3 col-md-6">
+        <div class="card dashboard-card">
+          <div class="card-body text-center">
+            <div class="text-primary mb-2">
+              <i class="fas fa-mobile-alt fa-2x"></i>
+            </div>
+            <h3 class="text-primary"><a href="{% url 'whatsapp:instances_list' %}">{{ whatsapp_instances }}</a></h3>
+            <p class="text-muted mb-0">Instâncias WhatsApp</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6">
+        <div class="card dashboard-card">
+          <div class="card-body text-center">
+            <div class="text-success mb-2">
+              <i class="fas fa-paper-plane fa-2x"></i>
+            </div>
+            <h3 class="text-success">0</h3>
+            <p class="text-muted mb-0">Mensagens Enviadas</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6">
+        <div class="card dashboard-card">
+          <div class="card-body text-center">
+            <div class="text-warning mb-2">
+              <i class="fas fa-users fa-2x"></i>
+            </div>
+            <h3 class="text-warning"><a href="{% url 'whatsapp:groups_list' %}">{{ groups_count }}</a></h3>
+            <p class="text-muted mb-0">Grupos Ativos</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6">
+        <div class="card dashboard-card">
+          <div class="card-body text-center">
+            <div class="text-info mb-2">
+              <i class="fas fa-clock fa-2x"></i>
+            </div>
+            <h3 class="text-info">0</h3>
+            <p class="text-muted mb-0">Agendamentos</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Ações Rápidas</h5>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-lg-3 col-md-6">
+                <a href="{% url 'whatsapp:connect' %}" class="btn btn-outline-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3">
+                  <i class="fas fa-plus fa-2x mb-2"></i>
+                  <span>Conectar WhatsApp</span>
+                </a>
+              </div>
+
+              <div class="col-lg-3 col-md-6">
+                <a href="{% url 'whatsapp:send_message' %}" class="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3">
+                  <i class="fas fa-paper-plane fa-2x mb-2"></i>
+                  <span>Enviar Mensagem</span>
+                </a>
+              </div>
+
+              <div class="col-lg-3 col-md-6">
+                <a href="{% url 'whatsapp:schedule_message' %}" class="btn btn-outline-warning w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3">
+                  <i class="fas fa-clock fa-2x mb-2"></i>
+                  <span>Agendar Mensagem</span>
+                </a>
+              </div>
+
+              <div class="col-lg-3 col-md-6">
+                <a href="{% url 'whatsapp:scheduled_messages_list' %}" class="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3">
+                  <i class="fas fa-list fa-2x mb-2"></i>
+                  <span>Mensagens Agendadas</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity & Subscription Info -->
+    <div class="row">
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-history me-2"></i>Atividade Recente</h5>
+          </div>
+          <div class="card-body">
+            <div class="text-center py-5">
+              <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+              <h6 class="text-muted">Nenhuma atividade recente</h6>
+              <p class="text-muted mb-0">Suas atividades aparecerão aqui quando você começar a usar a plataforma.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Minha Assinatura</h5>
+          </div>
+          <div class="card-body">
+            {% if user.current_subscription %}
+              <div class="text-center">
+                <div class="badge bg-success mb-3 p-2">
+                  <i class="fas fa-crown me-1"></i>
+                  {{ user.current_subscription.plan.name }}
+                </div>
+                <p class="mb-2">
+                  <strong>Status:</strong>
+                  <span class="text-success">{{ user.current_subscription.get_status_display }}</span>
+                </p>
+                <p class="mb-2">
+                  <strong>Próxima cobrança:</strong><br />
+                  {{ user.current_subscription.current_period_end|date:'d/m/Y' }}
+                </p>
+                <hr />
+                <div class="d-grid gap-2">
+                  <a href="{% url 'subscription' %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-cog me-1"></i>Gerenciar</a>
+                  <a href="{% url 'subscriptions:plans' %}" class="btn btn-outline-success btn-sm"><i class="fas fa-arrow-up me-1"></i>Upgrade</a>
+                </div>
+              </div>
+            {% else %}
+              <div class="text-center">
+                <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
+                <h6>Nenhum plano ativo</h6>
+                <p class="text-muted mb-3">Escolha um plano para começar a usar todas as funcionalidades.</p>
+                <a href="{% url 'subscriptions:plans' %}" class="btn btn-primary"><i class="fas fa-rocket me-2"></i>Escolher Plano</a>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Getting Started -->
+        <div class="card mt-4">
+          <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Primeiros Passos</h5>
+          </div>
+          <div class="card-body">
+            <div class="list-group list-group-flush">
+              <div class="list-group-item d-flex align-items-center">
+                <i class="fas fa-check-circle text-success me-3"></i>
+                <span>Conta criada</span>
+              </div>
+              <div class="list-group-item d-flex align-items-center">
+                <i class="fas fa-circle text-muted me-3"></i>
+                <span>Conectar WhatsApp</span>
+              </div>
+              <div class="list-group-item d-flex align-items-center">
+                <i class="fas fa-circle text-muted me-3"></i>
+                <span>Importar grupos</span>
+              </div>
+              <div class="list-group-item d-flex align-items-center">
+                <i class="fas fa-circle text-muted me-3"></i>
+                <span>Primeira mensagem</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

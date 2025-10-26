@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Criar Conta - Tsuru Groups{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        padding-top: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="auth-card card shadow-lg fade-in">
+                    <div class="auth-header">
+                        <i class="fas fa-user-plus fa-3x mb-3"></i>
+                        <h2>Criar Conta</h2>
+                        <p class="mb-0">Junte-se ao Tsuru Groups hoje</p>
+                    </div>
+                    
+                    <div class="auth-body">
+                        <form method="post" class="needs-validation" novalidate id="registerForm">
+                            {% csrf_token %}
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="first_name" class="form-label">
+                                        <i class="fas fa-user me-2"></i>Nome
+                                    </label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="first_name" 
+                                           name="first_name" 
+                                           required>
+                                    <div class="invalid-feedback">
+                                        Por favor, insira seu nome.
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="last_name" class="form-label">
+                                        <i class="fas fa-user me-2"></i>Sobrenome
+                                    </label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="last_name" 
+                                           name="last_name" 
+                                           required>
+                                    <div class="invalid-feedback">
+                                        Por favor, insira seu sobrenome.
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="email" class="form-label">
+                                    <i class="fas fa-envelope me-2"></i>E-mail
+                                </label>
+                                <input type="email" 
+                                       class="form-control" 
+                                       id="email" 
+                                       name="email" 
+                                       required>
+                                <div class="invalid-feedback">
+                                    Por favor, insira um e-mail válido.
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">
+                                    <i class="fas fa-phone me-2"></i>Telefone (opcional)
+                                </label>
+                                <input type="tel" 
+                                       class="form-control" 
+                                       id="phone" 
+                                       name="phone" 
+                                       placeholder="(11) 99999-9999">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="password" class="form-label">
+                                    <i class="fas fa-lock me-2"></i>Senha
+                                </label>
+                                <div class="input-group">
+                                    <input type="password" 
+                                           class="form-control" 
+                                           id="password" 
+                                           name="password" 
+                                           required>
+                                    <button class="btn btn-outline-secondary" 
+                                            type="button" 
+                                            id="togglePassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback">
+                                    Por favor, crie uma senha.
+                                </div>
+                                
+                                <!-- Password strength indicator -->
+                                <div id="password-strength" class="mt-2" style="display: none;">
+                                    <div class="progress" style="height: 5px;">
+                                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <div class="password-feedback text-muted small mt-1"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="terms" name="terms" required>
+                                <label class="form-check-label" for="terms">
+                                    Eu concordo com os 
+                                    <a href="#" class="text-primary text-decoration-none">Termos de Uso</a> 
+                                    e 
+                                    <a href="#" class="text-primary text-decoration-none">Política de Privacidade</a>
+                                </label>
+                                <div class="invalid-feedback">
+                                    Você deve concordar com os termos.
+                                </div>
+                            </div>
+                            
+                            <button type="submit" 
+                                    class="btn btn-primary w-100 mb-3"
+                                    data-loading-text='<i class="fas fa-spinner fa-spin me-2"></i>Criando conta...'>
+                                <i class="fas fa-user-plus me-2"></i>Criar Conta
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="auth-footer">
+                        <p class="mb-0">
+                            Já tem uma conta? 
+                            <a href="{% url 'login' %}" class="text-primary text-decoration-none fw-bold">
+                                Fazer login
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle password visibility
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            const icon = this.querySelector('i');
+            icon.classList.toggle('fa-eye');
+            icon.classList.toggle('fa-eye-slash');
+        });
+    }
+    
+    // Phone mask
+    const phoneInput = document.getElementById('phone');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, '');
+            if (value.length >= 11) {
+                value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+            } else if (value.length >= 7) {
+                value = value.replace(/(\d{2})(\d{4})(\d+)/, '($1) $2-$3');
+            } else if (value.length >= 3) {
+                value = value.replace(/(\d{2})(\d+)/, '($1) $2');
+            }
+            this.value = value;
+        });
+    }
+    
+    // Form submission handler
+    const form = document.getElementById('registerForm');
+    const submitButton = document.querySelector('button[type="submit"]');
+    
+    if (form && submitButton) {
+        console.log('Form de registro encontrado');
+        
+        // Override the submit button click to handle validation manually
+        submitButton.addEventListener('click', function(e) {
+            e.preventDefault(); // Always prevent default first
+            
+            console.log('=== BUTTON CLICK EVENT ===');
+            
+            // Manual validation
+            let isValid = true;
+            const requiredFields = form.querySelectorAll('[required]');
+            let invalidFields = [];
+            
+            requiredFields.forEach(field => {
+                // Remove previous validation classes
+                field.classList.remove('is-invalid', 'is-valid');
+                
+                if (!field.value.trim() || !field.checkValidity()) {
+                    field.classList.add('is-invalid');
+                    invalidFields.push({
+                        name: field.name || field.id,
+                        message: field.validationMessage || 'Campo obrigatório',
+                        value: field.value
+                    });
+                    isValid = false;
+                } else {
+                    field.classList.add('is-valid');
+                }
+            });
+            
+            form.classList.add('was-validated');
+            
+            if (invalidFields.length > 0) {
+                console.log('Campos inválidos:', invalidFields);
+                // Focus on first invalid field
+                const firstInvalid = form.querySelector('.is-invalid');
+                if (firstInvalid) {
+                    firstInvalid.focus();
+                }
+                return false;
+            }
+            
+            console.log('Todos os campos válidos - enviando formulário...');
+            
+            // Show loading state
+            const originalText = this.innerHTML;
+            const loadingText = this.getAttribute('data-loading-text');
+            this.innerHTML = loadingText;
+            this.classList.add('loading');
+            
+            // Submit the form
+            form.submit();
+        });
+    }
+});
+</script>
+{% endblock %}

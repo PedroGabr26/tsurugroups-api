@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+  {{ page_title }} - Tsuru Groups
+{% endblock %}
+
+{% block extra_css %}
+  <style>
+    .message-card {
+      border-left: 4px solid #007bff;
+      transition: all 0.3s ease;
+    }
+    .message-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .status-pending {
+      border-left-color: #6c757d;
+    }
+    .status-scheduled {
+      border-left-color: #ffc107;
+    }
+    .status-sending {
+      border-left-color: #17a2b8;
+    }
+    .status-sent {
+      border-left-color: #28a745;
+    }
+    .status-failed {
+      border-left-color: #dc3545;
+    }
+    .status-cancelled {
+      border-left-color: #343a40;
+    }
+    
+    .progress-ring {
+      width: 40px;
+      height: 40px;
+    }
+    
+    .progress-ring-circle {
+      stroke: #007bff;
+      stroke-width: 4;
+      fill: transparent;
+    }
+    
+    .filter-tabs .nav-link {
+      border-radius: 20px;
+      margin-right: 0.5rem;
+    }
+    
+    .filter-tabs .nav-link.active {
+      background-color: #007bff;
+      border-color: #007bff;
+    }
+    
+    .message-preview {
+      max-height: 60px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="container mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h2><i class="fas fa-list me-2"></i>{{ page_title }}</h2>
+            <p class="text-muted mb-0">Gerencie suas mensagens agendadas</p>
+          </div>
+          <div>
+            <a href="{% url 'whatsapp:schedule_message' %}" class="btn btn-warning"><i class="fas fa-plus me-2"></i>Nova Mensagem</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <ul class="nav nav-pills filter-tabs" id="statusTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="all-tab" data-bs-toggle="pill" data-bs-target="#all" type="button" role="tab">
+                  <i class="fas fa-list me-1"></i>Todas
+                  <span class="badge bg-secondary ms-1">{{ scheduled_messages|length }}</span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="scheduled-tab" data-bs-toggle="pill" data-bs-target="#scheduled" type="button" role="tab">
+                  <i class="fas fa-clock me-1"></i>Agendadas
+                  <span class="badge bg-warning ms-1" id="scheduled-count">0</span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sending-tab" data-bs-toggle="pill" data-bs-target="#sending" type="button" role="tab">
+                  <i class="fas fa-paper-plane me-1"></i>Enviando
+                  <span class="badge bg-info ms-1" id="sending-count">0</span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sent-tab" data-bs-toggle="pill" data-bs-target="#sent" type="button" role="tab">
+                  <i class="fas fa-check-circle me-1"></i>Enviadas
+                  <span class="badge bg-success ms-1" id="sent-count">0</span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="failed-tab" data-bs-toggle="pill" data-bs-target="#failed" type="button" role="tab">
+                  <i class="fas fa-exclamation-triangle me-1"></i>Falhas
+                  <span class="badge bg-danger ms-1" id="failed-count">0</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de Mensagens -->
+    <div class="row">
+      <div class="col-12">
+        {% if scheduled_messages %}
+          <div class="tab-content" id="statusTabContent">
+            <div class="tab-pane fade show active" id="all" role="tabpanel">
+              <div class="row g-4">
+                {% for message in scheduled_messages %}
+                  <div class="col-lg-6 col-xl-4 message-item" data-status="{{ message.status }}">
+                    <div class="card message-card status-{{ message.status }} h-100">
+                      <div class="card-header d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                          <h6 class="mb-1">{{ message.name }}</h6>
+                          <small class="text-muted">
+                            <i class="fas fa-mobile-alt me-1"></i>
+                            {{ message.whatsapp_instance.name }}
+                          </small>
+                        </div>
+                        <div class="text-end">
+                          {% if message.status == 'pending' %}
+                            <span class="badge bg-secondary">Pendente</span>
+                          {% elif message.status == 'scheduled' %}
+                            <span class="badge bg-warning">Agendado</span>
+                          {% elif message.status == 'sending' %}
+                            <span class="badge bg-info">Enviando</span>
+                          {% elif message.status == 'sent' %}
+                            <span class="badge bg-success">Enviado</span>
+                          {% elif message.status == 'failed' %}
+                            <span class="badge bg-danger">Falhou</span>
+                          {% elif message.status == 'cancelled' %}
+                            <span class="badge bg-dark">Cancelado</span>
+                          {% endif %}
+                        </div>
+                      </div>
+
+                      <div class="card-body">
+                        <!-- Progresso (apenas para mensagens sendo enviadas) -->
+                        {% if message.status == 'sending' %}
+                          <div class="d-flex align-items-center mb-3">
+                            <div class="progress flex-grow-1 me-3">
+                              <div class="progress-bar bg-info" role="progressbar" style="width: {{ message.success_rate }}%" aria-valuenow="{{ message.success_rate }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <small class="text-muted">{{ message.messages_sent }}/{{ message.total_recipients }}</small>
+                          </div>
+                        {% endif %}
+
+                        <!-- Preview da mensagem -->
+                        <div class="message-preview mb-3">
+                          <p class="text-muted small mb-0">{{ message.message_content }}</p>
+                        </div>
+
+                        <!-- Informações de agendamento -->
+                        <div class="mb-3">
+                          <div class="row text-center">
+                            <div class="col-6">
+                              <div class="border-end">
+                                <div class="text-primary fw-bold">{{ message.total_recipients }}</div>
+                                <small class="text-muted">Destinatários</small>
+                              </div>
+                            </div>
+                            <div class="col-6">
+                              <div class="text-success fw-bold">{{ message.messages_sent }}</div>
+                              <small class="text-muted">Enviadas</small>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Data e hora -->
+                        <div class="d-flex align-items-center mb-3">
+                          <i class="fas fa-calendar text-muted me-2"></i>
+                          <span class="small">{{ message.schedule_date|date:'d/m/Y' }} às {{ message.schedule_time|time:'H:i' }}</span>
+                        </div>
+
+                        <!-- Timestamps -->
+                        <div class="small text-muted mb-3">
+                          <div>
+                            <strong>Criado:</strong> {{ message.created_at|date:'d/m/Y H:i' }}
+                          </div>
+                          {% if message.started_at %}
+                            <div>
+                              <strong>Iniciado:</strong> {{ message.started_at|date:'d/m/Y H:i' }}
+                            </div>
+                          {% endif %}
+                          {% if message.completed_at %}
+                            <div>
+                              <strong>Concluído:</strong> {{ message.completed_at|date:'d/m/Y H:i' }}
+                            </div>
+                          {% endif %}
+                        </div>
+
+                        <!-- Erro (se houver) -->
+                        {% if message.error_message %}
+                          <div class="alert alert-danger small py-2 mb-3">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            {{ message.error_message }}
+                          </div>
+                        {% endif %}
+                      </div>
+
+                      <!-- Ações -->
+                      <div class="card-footer bg-transparent">
+                        <div class="d-flex justify-content-between align-items-center">
+                          <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailsModal" data-message-id="{{ message.id }}"><i class="fas fa-eye"></i></button>
+                            {% if message.can_be_cancelled %}
+                              <button type="button" class="btn btn-outline-danger" onclick="cancelMessage('{{ message.id }}', '{{ message.name }}')"><i class="fas fa-times"></i></button>
+                            {% endif %}
+                          </div>
+
+                          {% if message.status == 'sent' %}
+                            <small class="text-success">
+                              <i class="fas fa-check-circle me-1"></i>
+                              Taxa: {{ message.success_rate|floatformat:1 }}%
+                            </small>
+                          {% elif message.status == 'failed' %}
+                            <small class="text-danger">
+                              <i class="fas fa-times-circle me-1"></i>
+                              {{ message.messages_failed }} falhas
+                            </small>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="card">
+            <div class="card-body text-center py-5">
+              <i class="fas fa-inbox fa-4x text-muted mb-4"></i>
+              <h4 class="text-muted">Nenhuma mensagem agendada</h4>
+              <p class="text-muted mb-4">Você ainda não criou nenhuma mensagem agendada.</p>
+              <a href="{% url 'whatsapp:schedule_message' %}" class="btn btn-warning"><i class="fas fa-plus me-2"></i>Criar Primeira Mensagem</a>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Detalhes -->
+  <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="detailsModalLabel"><i class="fas fa-info-circle me-2"></i>Detalhes da Mensagem</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="modalContent">
+          <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Carregando...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmação de Cancelamento -->
+  <div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="cancelModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Cancelar Mensagem</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>
+            Tem certeza que deseja cancelar a mensagem <strong id="cancelMessageName"></strong>?
+          </p>
+          <p class="text-muted small">Esta ação não pode ser desfeita.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Não</button>
+          <form method="post" id="cancelForm" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Sim, Cancelar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // Contar mensagens por status
+      updateStatusCounts()
+    
+      // Filtrar mensagens por status
+      setupStatusFilters()
+    
+      // Auto-refresh para mensagens sendo enviadas
+      if (document.querySelectorAll('[data-status="sending"]').length > 0) {
+        setInterval(function () {
+          location.reload()
+        }, 30000) // Refresh a cada 30 segundos
+      }
+    })
+    
+    function updateStatusCounts() {
+      const statusCounts = {
+        scheduled: 0,
+        sending: 0,
+        sent: 0,
+        failed: 0
+      }
+    
+      document.querySelectorAll('.message-item').forEach((item) => {
+        const status = item.dataset.status
+        if (statusCounts.hasOwnProperty(status)) {
+          statusCounts[status]++
+        }
+      })
+    
+      // Atualizar badges
+      Object.keys(statusCounts).forEach((status) => {
+        const badge = document.getElementById(`${status}-count`)
+        if (badge) {
+          badge.textContent = statusCounts[status]
+        }
+      })
+    }
+    
+    function setupStatusFilters() {
+      const tabs = document.querySelectorAll('#statusTabs button[data-bs-toggle="pill"]')
+    
+      tabs.forEach((tab) => {
+        tab.addEventListener('shown.bs.tab', function (e) {
+          const targetStatus = e.target.id.replace('-tab', '')
+          const messageItems = document.querySelectorAll('.message-item')
+    
+          messageItems.forEach((item) => {
+            if (targetStatus === 'all') {
+              item.style.display = 'block'
+            } else {
+              if (item.dataset.status === targetStatus) {
+                item.style.display = 'block'
+              } else {
+                item.style.display = 'none'
+              }
+            }
+          })
+        })
+      })
+    }
+    
+    function cancelMessage(messageId, messageName) {
+      document.getElementById('cancelMessageName').textContent = messageName
+      document.getElementById('cancelForm').action = `{% url 'whatsapp:cancel_scheduled_message' '00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', messageId)
+    
+      const modal = new bootstrap.Modal(document.getElementById('cancelModal'))
+      modal.show()
+    }
+    
+    // Modal de detalhes
+    document.getElementById('detailsModal').addEventListener('show.bs.modal', function (e) {
+      const button = e.relatedTarget
+      const messageId = button.getAttribute('data-message-id')
+      const modalContent = document.getElementById('modalContent')
+    
+      // Aqui você pode fazer uma requisição AJAX para buscar mais detalhes
+      // Por enquanto, vamos mostrar um placeholder
+      modalContent.innerHTML = `
+            <div class="alert alert-info">
+              <h6><i class="fas fa-info-circle me-2"></i>Funcionalidade em desenvolvimento</h6>
+              <p class="mb-0">Em breve você poderá ver detalhes completos da mensagem, incluindo log de entregas e estatísticas detalhadas.</p>
+            </div>
+            <div class="text-center">
+              <p class="text-muted">ID da Mensagem: ${messageId}</p>
+            </div>
+          `
+    })
+    
+    // Função para formatar progresso
+    function updateProgress(messageId, sent, total) {
+      const progressBar = document.querySelector(`[data-message-id="${messageId}"] .progress-bar`)
+      if (progressBar) {
+        const percentage = (sent / total) * 100
+        progressBar.style.width = percentage + '%'
+        progressBar.setAttribute('aria-valuenow', percentage)
+      }
+    }
+    
+    // Animação de hover para cards
+    document.querySelectorAll('.message-card').forEach((card) => {
+      card.addEventListener('mouseenter', function () {
+        this.style.transform = 'translateY(-2px)'
+      })
+    
+      card.addEventListener('mouseleave', function () {
+        this.style.transform = 'translateY(0)'
+      })
+    })
+  </script>
+{% endblock %}

@@ -1,0 +1,563 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+  {{ page_title }} - Tsuru Groups
+{% endblock %}
+
+{% block extra_css %}
+  <style>
+    .group-card {
+      border-left: 4px solid #28a745;
+      transition: all 0.3s ease;
+    }
+    
+    .group-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .group-card.admin {
+      border-left-color: #007bff;
+    }
+    
+    .group-card.member {
+      border-left-color: #28a745;
+    }
+    
+    .group-card.inactive {
+      border-left-color: #6c757d;
+      opacity: 0.7;
+    }
+    
+    .admin-badge {
+      background: linear-gradient(45deg, #007bff, #0056b3);
+    }
+    
+    .member-badge {
+      background: linear-gradient(45deg, #28a745, #1e7e34);
+    }
+    
+    .group-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(45deg, #007bff, #28a745);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    
+    .participants-count {
+      background: rgba(40, 167, 69, 0.1);
+      color: #28a745;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    
+    .sync-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #28a745;
+    }
+    
+    .sync-indicator.outdated {
+      background-color: #ffc107;
+    }
+    
+    .sync-indicator.error {
+      background-color: #dc3545;
+    }
+    
+    .group-description {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-height: 2.4em;
+      line-height: 1.2em;
+    }
+    
+    .filter-tabs .nav-link {
+      color: #6c757d;
+      border-color: transparent;
+    }
+    
+    .filter-tabs .nav-link.active {
+      background-color: #007bff;
+      border-color: #007bff;
+      color: white;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="container mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h2><i class="fas fa-users me-2"></i>{{ page_title }}</h2>
+            <p class="text-muted mb-0">Gerencie todos os seus grupos WhatsApp</p>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="syncAllGroups()"><i class="fas fa-sync-alt me-2"></i>Sincronizar Todos</button>
+            <a href="{% url 'whatsapp:instances_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left me-2"></i>Instâncias</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <div class="row align-items-center">
+              <div class="col-md-6">
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fas fa-search"></i></span>
+                  <input type="text" class="form-control" id="searchInput" placeholder="Buscar grupos..." onkeyup="filterGroups()" />
+                </div>
+              </div>
+              <div class="col-md-6">
+                <ul class="nav nav-pills filter-tabs justify-content-end" id="filterTabs">
+                  <li class="nav-item">
+                    <a class="nav-link active" href="#" data-filter="all">Todos</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" href="#" data-filter="admin">Admin</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" href="#" data-filter="member">Membro</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estatísticas -->
+    <div class="row mb-4">
+      <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-primary text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h4 class="mb-0">{{ groups|length }}</h4>
+                <small>Total de Grupos</small>
+              </div>
+              <i class="fas fa-users fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-success text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h4 class="mb-0">{{ groups|length|add:0 }}</h4>
+                <small>Como Admin</small>
+              </div>
+              <i class="fas fa-crown fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-info text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h4 class="mb-0">0</h4>
+                <small>Total Participantes</small>
+              </div>
+              <i class="fas fa-user-friends fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-warning text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h4 class="mb-0">0</h4>
+                <small>Com Mensagens</small>
+              </div>
+              <i class="fas fa-comments fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de Grupos -->
+    <div class="row" id="groupsList">
+      {% if groups %}
+        {% for group in groups %}
+          <div class="col-lg-6 col-xl-4 mb-4 group-item"
+            data-filter="{% if group.is_admin %}
+              
+              
+              
+              
+              admin
+
+
+
+
+            {% else %}
+              
+              
+              
+              
+              member
+
+
+
+
+            {% endif %}"
+            data-name="{{ group.name|lower }}"
+            data-description="{{ group.description|lower }}">
+            <div class="card group-card {% if group.is_admin %}
+                
+                
+                
+                
+                admin
+
+
+
+
+              {% else %}
+                
+                
+                
+                
+                member
+
+
+
+
+              {% endif %} {% if not group.is_active %}inactive{% endif %} h-100 position-relative">
+              <!-- Indicador de sincronização -->
+              <div class="sync-indicator {% if group.last_synced_at %}
+
+                {% else %}
+                  
+                  
+                  
+                  
+                  outdated
+
+
+
+
+                {% endif %}"></div>
+
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                  <div class="group-avatar me-3">{{ group.name|first|upper }}</div>
+                  <div>
+                    <h6 class="mb-0">{{ group.name|truncatechars:25 }}</h6>
+                    <small class="text-muted d-block">{{ group.whatsapp_instance.name }}</small>
+                    {% if group.is_admin %}
+                      <span class="badge admin-badge"><i class="fas fa-crown me-1"></i>Administrador</span>
+                    {% else %}
+                      <span class="badge member-badge"><i class="fas fa-user me-1"></i>Membro</span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
+                  <ul class="dropdown-menu">
+                    <li>
+                      <a class="dropdown-item" href="#" onclick="viewGroupDetails('{{ group.id }}')"><i class="fas fa-eye me-2"></i>Ver Detalhes</a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item" href="#" onclick="viewParticipants('{{ group.id }}')"><i class="fas fa-users me-2"></i>Participantes</a>
+                    </li>
+                    {% if group.is_admin %}
+                      <li>
+                        <hr class="dropdown-divider" />
+                      </li>
+                      <li>
+                        <a class="dropdown-item" href="{% url 'whatsapp:send_message' %}?group={{ group.id }}"><i class="fas fa-paper-plane me-2"></i>Enviar Mensagem</a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item" href="{% url 'whatsapp:schedule_message' %}?group={{ group.id }}"><i class="fas fa-clock me-2"></i>Agendar Mensagem</a>
+                      </li>
+                    {% endif %}
+                    <li>
+                      <hr class="dropdown-divider" />
+                    </li>
+                    <li>
+                      <a class="dropdown-item" href="#" onclick="syncSingleGroup('{{ group.id }}')"><i class="fas fa-sync-alt me-2"></i>Sincronizar</a>
+                    </li>
+                    {% if not group.is_active %}
+                      <li>
+                        <a class="dropdown-item text-success" href="#" onclick="toggleGroupStatus('{{ group.id }}', true)"><i class="fas fa-check me-2"></i>Ativar</a>
+                      </li>
+                    {% else %}
+                      <li>
+                        <a class="dropdown-item text-warning" href="#" onclick="toggleGroupStatus('{{ group.id }}', false)"><i class="fas fa-pause me-2"></i>Desativar</a>
+                      </li>
+                    {% endif %}
+                  </ul>
+                </div>
+              </div>
+
+              <div class="card-body">
+                <!-- Descrição do Grupo -->
+                {% if group.description %}
+                  <div class="mb-3">
+                    <small class="text-muted group-description">{{ group.description }}</small>
+                  </div>
+                {% endif %}
+
+                <!-- Informações do Grupo -->
+                <div class="row mb-3">
+                  <div class="col-6">
+                    <div class="participants-count text-center">
+                      <i class="fas fa-users me-1"></i>
+                      {{ group.participant_count }} participantes
+                    </div>
+                  </div>
+                  <div class="col-6 text-center">
+                    {% if group.messages.count > 0 %}
+                      <small class="text-success">
+                        <i class="fas fa-comments me-1"></i>
+                        {{ group.messages.count }} mensagens
+                      </small>
+                    {% else %}
+                      <small class="text-muted">
+                        <i class="fas fa-comment-slash me-1"></i>
+                        Sem mensagens
+                      </small>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <!-- Configurações do Grupo -->
+                <div class="mb-3">
+                  <div class="d-flex flex-wrap gap-1">
+                    {% if group.is_locked %}
+                      <span class="badge bg-secondary" title="Grupo fechado"><i class="fas fa-lock"></i></span>
+                    {% endif %}
+                    {% if group.is_announce %}
+                      <span class="badge bg-info" title="Somente admins podem enviar"><i class="fas fa-bullhorn"></i></span>
+                    {% endif %}
+                    {% if group.is_ephemeral %}
+                      <span class="badge bg-warning" title="Mensagens temporárias"><i class="fas fa-clock"></i></span>
+                    {% endif %}
+                    {% if group.is_join_approval_required %}
+                      <span class="badge bg-primary" title="Aprovação para entrar"><i class="fas fa-user-check"></i></span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <!-- Informações Adicionais -->
+                <div class="small text-muted">
+                  <div class="row">
+                    <div class="col-6">
+                      <strong>Criado:</strong><br />
+                      {% if group.group_created %}
+                        {{ group.group_created|date:'d/m/Y' }}
+                      {% else %}
+                        Não informado
+                      {% endif %}
+                    </div>
+                    <div class="col-6">
+                      <strong>Sincronizado:</strong><br />
+                      {% if group.last_synced_at %}
+                        {{ group.last_synced_at|date:'d/m H:i' }}
+                      {% else %}
+                        <span class="text-warning">Nunca</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Ações Rápidas -->
+              <div class="card-footer bg-transparent">
+                <div class="d-flex justify-content-between">
+                  <button class="btn btn-sm btn-outline-primary" onclick="viewGroupDetails('{{ group.id }}')"><i class="fas fa-eye me-1"></i>Detalhes</button>
+
+                  {% if group.is_admin %}
+                    <div class="btn-group btn-group-sm">
+                      <a href="{% url 'whatsapp:send_message' %}?group={{ group.id }}" class="btn btn-outline-success"><i class="fas fa-paper-plane me-1"></i>Enviar</a>
+                      <button class="btn btn-outline-info" onclick="viewParticipants('{{ group.id }}')"><i class="fas fa-users me-1"></i>{{ group.participant_count }}</button>
+                    </div>
+                  {% else %}
+                    <button class="btn btn-sm btn-outline-info" onclick="viewParticipants('{{ group.id }}')"><i class="fas fa-users me-1"></i>{{ group.participant_count }} participantes</button>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <!-- Estado Vazio -->
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body text-center py-5">
+              <i class="fas fa-users fa-4x text-muted mb-4"></i>
+              <h4 class="text-muted">Nenhum grupo encontrado</h4>
+              <p class="text-muted mb-4">
+                Você ainda não possui grupos WhatsApp sincronizados.<br />
+                Conecte uma instância WhatsApp e sincronize os grupos para começar.
+              </p>
+              <div class="d-flex gap-2 justify-content-center">
+                <a href="{% url 'whatsapp:connect' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Conectar WhatsApp</a>
+                <button class="btn btn-outline-primary" onclick="syncAllGroups()"><i class="fas fa-sync-alt me-2"></i>Sincronizar Grupos</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="text-center py-4" style="display: none;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Carregando...</span>
+      </div>
+      <div class="mt-2">
+        <small class="text-muted">Sincronizando grupos...</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Detalhes do Grupo -->
+  <div class="modal fade" id="groupDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-users me-2"></i>Detalhes do Grupo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="groupDetailsContent">
+          <!-- Conteúdo carregado dinamicamente -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Participantes -->
+  <div class="modal fade" id="participantsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-user-friends me-2"></i>Participantes do Grupo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="participantsContent">
+          <!-- Conteúdo carregado dinamicamente -->
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    // Filtros
+    document.addEventListener('DOMContentLoaded', function () {
+      const filterTabs = document.querySelectorAll('#filterTabs .nav-link')
+    
+      filterTabs.forEach((tab) => {
+        tab.addEventListener('click', function (e) {
+          e.preventDefault()
+    
+          // Atualizar tabs ativas
+          filterTabs.forEach((t) => t.classList.remove('active'))
+          this.classList.add('active')
+    
+          // Filtrar grupos
+          const filter = this.getAttribute('data-filter')
+          filterGroupsByType(filter)
+        })
+      })
+    })
+    
+    function filterGroupsByType(filter) {
+      const groupItems = document.querySelectorAll('.group-item')
+    
+      groupItems.forEach((item) => {
+        if (filter === 'all' || item.getAttribute('data-filter') === filter) {
+          item.style.display = 'block'
+        } else {
+          item.style.display = 'none'
+        }
+      })
+    }
+    
+    function filterGroups() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase()
+      const groupItems = document.querySelectorAll('.group-item')
+    
+      groupItems.forEach((item) => {
+        const name = item.getAttribute('data-name')
+        const description = item.getAttribute('data-description')
+    
+        if (name.includes(searchTerm) || description.includes(searchTerm)) {
+          item.style.display = 'block'
+        } else {
+          item.style.display = 'none'
+        }
+      })
+    }
+    
+    // Sincronização
+    function syncAllGroups() {
+      alert('Sincronização de grupos será implementada em breve. Por enquanto, acesse as instâncias individuais para sincronizar.')
+    }
+    
+    function syncSingleGroup(groupId) {
+      alert('Sincronização individual de grupos será implementada em breve. Use "Sincronizar Todos" por enquanto.')
+    }
+    
+    // Detalhes e participantes
+    function viewGroupDetails(groupId) {
+      alert('Visualização de detalhes será implementada em breve.')
+    }
+    
+    function viewParticipants(groupId) {
+      alert('Visualização de participantes será implementada em breve.')
+    }
+    
+    // Status do grupo
+    function toggleGroupStatus(groupId, activate) {
+      const action = activate ? 'ativar' : 'desativar'
+      alert(`Funcionalidade para ${action} grupos será implementada em breve.`)
+    }
+    
+    // CSRF Token para requisições AJAX
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')
+    if (!csrfToken) {
+      // Criar token CSRF se não existir
+      const tokenInput = document.createElement('input')
+      tokenInput.type = 'hidden'
+      tokenInput.name = 'csrfmiddlewaretoken'
+      tokenInput.value = '{{ csrf_token }}'
+      document.body.appendChild(tokenInput)
+    }
+  </script>
+{% endblock %}

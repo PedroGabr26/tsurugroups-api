@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+  Escolha seu Plano - Tsuru Groups
+{% endblock %}
+
+{% block content %}
+  <div class="hero text-center">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-lg-8">
+          <h1 class="fade-in">Escolha o Plano Ideal</h1>
+          <p class="lead fade-in-delay">Automatize seu WhatsApp Business com nossos planos flexíveis e poderosos</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="plans-section">
+    <div class="container">
+      <!-- Plans Grid -->
+      <div class="row g-4" id="plans-container">
+        {% for plan in plans %}
+          <div class="col-lg-4 col-md-6">
+            <div class="plan-card card {% if plan.is_featured %}featured{% endif %} fade-in h-100">
+              <div class="plan-header">
+                <div class="plan-name">{{ plan.name }}</div>
+                <div class="plan-price">
+                  R$ <span class="price-value">{{ plan.price }}</span>
+                  <small>/mês</small>
+                </div>
+                <p class="plan-description">{{ plan.description }}</p>
+              </div>
+
+              <div class="plan-features">
+                <ul>
+                  <li>
+                    <i class="fas fa-check"></i>
+                    {{ plan.max_whatsapp_instances }} instância{% if plan.max_whatsapp_instances > 1 %}s{% endif %}WhatsApp
+                  </li>
+                  <li>
+                    <i class="fas fa-check"></i>
+                    {{ plan.max_scheduled_messages_per_month }} mensagens/mês
+                  </li>
+                  <li>
+                    <i class="fas fa-check"></i>
+                    {{ plan.max_groups_per_instance }} grupos por instância
+                  </li>
+                  <li>
+                    <i class="fas fa-check"></i>
+                    {{ plan.max_contacts_per_instance }} contatos por instância
+                  </li>
+                  <li>
+                    <i class="fas fa-check"></i>
+                    {{ plan.max_templates }} templates de mensagem
+                  </li>
+                  {% if plan.has_api_access %}
+                    <li>
+                      <i class="fas fa-check"></i>
+                      Acesso à API
+                    </li>
+                  {% endif %}
+                  {% if plan.has_webhook_support %}
+                    <li>
+                      <i class="fas fa-check"></i>
+                      Suporte a Webhooks
+                    </li>
+                  {% endif %}
+                  {% if plan.has_advanced_scheduling %}
+                    <li>
+                      <i class="fas fa-check"></i>
+                      Agendamento Avançado
+                    </li>
+                  {% endif %}
+                  {% if plan.has_analytics %}
+                    <li>
+                      <i class="fas fa-check"></i>
+                      Relatórios e Analytics
+                    </li>
+                  {% endif %}
+                  {% if plan.has_priority_support %}
+                    <li>
+                      <i class="fas fa-check"></i>
+                      Suporte Prioritário
+                    </li>
+                  {% endif %}
+                </ul>
+              </div>
+
+              <div class="plan-footer mt-auto">
+                {% if user.is_authenticated %}
+                  <button type="button" class="btn btn-primary w-100 select-plan-btn" data-plan-id="{{ plan.id }}" data-plan-name="{{ plan.name }}" data-plan-price="{{ plan.price }}">
+                    <i class="fas fa-credit-card me-2"></i>
+                    Escolher Plano
+                  </button>
+                {% else %}
+                  <a href="{% url 'register' %}?plan={{ plan.slug }}" class="btn btn-primary w-100">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Começar Agora
+                  </a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% empty %}
+          <div class="col-12 text-center">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              Nenhum plano disponível no momento.
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,709 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+  {{ page_title }} - Tsuru Groups
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .connection-status {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .status-disconnected {
+    background-color: #f8f9fa;
+    border: 2px solid #dc3545;
+    color: #721c24;
+  }
+  
+  .status-connecting {
+    background-color: #fff3cd;
+    border: 2px solid #ffc107;
+    color: #664d03;
+  }
+  
+  .status-connected {
+    background-color: #d1e7dd;
+    border: 2px solid #198754;
+    color: #0f5132;
+  }
+  
+  .status-error {
+    background-color: #f8d7da;
+    border: 2px solid #dc3545;
+    color: #721c24;
+  }
+  
+  .qr-code-container {
+    text-align: center;
+    padding: 2rem;
+    background: white;
+    border: 2px dashed #dee2e6;
+    border-radius: 0.5rem;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  
+  .qr-code-image {
+    max-width: 250px;
+    max-height: 250px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+  }
+  
+  .stats-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+  }
+  
+  .stats-card .card-body {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .stats-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    transform: translate(30px, -30px);
+  }
+  
+  .instance-info {
+    background: #f8f9fa;
+    border-left: 4px solid #007bff;
+    padding: 1rem;
+    border-radius: 0.375rem;
+  }
+  
+  .action-buttons .btn {
+    margin: 0.25rem;
+  }
+  
+  .pulse {
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+  
+  .connection-steps {
+    counter-reset: step-counter;
+  }
+  
+  .connection-step {
+    counter-increment: step-counter;
+    position: relative;
+    padding-left: 3rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .connection-step::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 2rem;
+    height: 2rem;
+    background: #007bff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.875rem;
+  }
+  
+  .connection-step.completed::before {
+    background: #28a745;
+    content: '✓';
+  }
+  
+  .connection-step.active::before {
+    background: #ffc107;
+    color: #212529;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2><i class="fas fa-mobile-alt me-2"></i>{{ page_title }}</h2>
+          <p class="text-muted mb-0">Configure e gerencie sua conexão WhatsApp</p>
+        </div>
+        {% if instance_exists %}
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="instanceActions" data-bs-toggle="dropdown">
+              <i class="fas fa-cog me-2"></i>Ações
+            </button>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#" onclick="syncData('all')"><i class="fas fa-sync me-2"></i>Sincronizar Tudo</a></li>
+              <li><a class="dropdown-item" href="#" onclick="syncData('groups')"><i class="fas fa-users me-2"></i>Sincronizar Grupos</a></li>
+              <li><a class="dropdown-item" href="#" onclick="syncData('contacts')"><i class="fas fa-address-book me-2"></i>Sincronizar Contatos</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="#" onclick="confirmDelete()"><i class="fas fa-trash me-2"></i>Remover Instância</a></li>
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Coluna Principal -->
+    <div class="col-lg-8">
+      <!-- Status da Conexão -->
+      {% if instance %}
+        <div class="connection-status 
+          {% if instance.status == 'connected' %}status-connected
+          {% elif instance.status == 'connecting' or instance.status == 'qr_code' %}status-connecting
+          {% elif instance.status == 'error' %}status-error
+          {% else %}status-disconnected{% endif %}">
+          
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h5 class="mb-1">
+                {% if instance.status == 'connected' %}
+                  <i class="fas fa-check-circle me-2"></i>WhatsApp Conectado
+                {% elif instance.status == 'connecting' %}
+                  <i class="fas fa-spinner fa-spin me-2"></i>Conectando...
+                {% elif instance.status == 'qr_code' %}
+                  <i class="fas fa-qrcode me-2"></i>Aguardando QR Code
+                {% elif instance.status == 'error' %}
+                  <i class="fas fa-exclamation-triangle me-2"></i>Erro na Conexão
+                {% else %}
+                  <i class="fas fa-times-circle me-2"></i>Desconectado
+                {% endif %}
+              </h5>
+              
+              {% if instance.phone_number %}
+                <p class="mb-0">
+                  <i class="fas fa-phone me-2"></i>{{ instance.phone_number }}
+                </p>
+              {% endif %}
+              
+              {% if instance.last_connected_at %}
+                <small class="opacity-75">
+                  Última conexão: {{ instance.last_connected_at|date:"d/m/Y H:i" }}
+                </small>
+              {% endif %}
+            </div>
+            
+            <div class="action-buttons">
+              {% if instance.status == 'connected' %}
+                <form method="post" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="disconnect">
+                  <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Deseja desconectar o WhatsApp?')">
+                    <i class="fas fa-unlink me-2"></i>Desconectar
+                  </button>
+                </form>
+              {% else %}
+                <form method="post" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="connect">
+                  <button type="submit" class="btn btn-success">
+                    <i class="fas fa-link me-2"></i>Conectar
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Conexão (QR Code ou Código de Emparelhamento) -->
+      {% if instance and instance.status in 'connecting,qr_code,pairing_code' %}
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="mb-0">
+              {% if instance.connection_method == 'qr_code' %}
+                <i class="fas fa-qrcode me-2"></i>Escaneie o QR Code
+              {% else %}
+                <i class="fas fa-mobile-alt me-2"></i>Código de Emparelhamento
+              {% endif %}
+            </h5>
+          </div>
+          <div class="card-body">
+            <div id="connection-container" class="qr-code-container">
+              <div class="pulse">
+                <i class="fas fa-spinner fa-spin fa-3x text-muted mb-3"></i>
+              </div>
+              <p class="text-muted">Carregando...</p>
+            </div>
+            
+            <div class="alert alert-info mt-3">
+              {% if instance.connection_method == 'qr_code' %}
+                <h6><i class="fas fa-info-circle me-2"></i>Como conectar com QR Code:</h6>
+                <ol class="mb-0">
+                  <li>Abra o WhatsApp no seu celular</li>
+                  <li>Toque em <strong>Menu</strong> ou <strong>Configurações</strong></li>
+                  <li>Toque em <strong>Aparelhos conectados</strong></li>
+                  <li>Toque em <strong>Conectar um aparelho</strong></li>
+                  <li>Aponte seu telefone para esta tela para capturar o código</li>
+                </ol>
+              {% else %}
+                <h6><i class="fas fa-info-circle me-2"></i>Como conectar com Código:</h6>
+                <ol class="mb-0">
+                  <li>Abra o WhatsApp no seu celular (número {{ instance.whatsapp_number }})</li>
+                  <li>Toque em <strong>Menu</strong> ou <strong>Configurações</strong></li>
+                  <li>Toque em <strong>Aparelhos conectados</strong></li>
+                  <li>Toque em <strong>Conectar um aparelho</strong></li>
+                  <li>Escolha <strong>"Conectar com número do telefone"</strong></li>
+                  <li>Digite o código que aparecerá acima quando estiver disponível</li>
+                </ol>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Formulário de Configuração -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-cog me-2"></i>
+            {% if instance_exists %}Configurações da Instância{% else %}Criar Nova Instância{% endif %}
+          </h5>
+        </div>
+        <div class="card-body">
+          {% if instance_exists %}
+            <div class="instance-info mb-3">
+              <div class="row">
+                <div class="col-md-6">
+                  <strong>Nome:</strong> {{ instance.name }}
+                </div>
+                <div class="col-md-6">
+                  <strong>Última Conexão:</strong> {{ instance.last_connected_at|date:"d/m/Y H:i" }}
+                </div>
+              </div>
+              <div class="row mt-2">
+                <div class="col-md-6">
+                  <strong>Número WhatsApp:</strong> {{ instance.whatsapp_number }}
+                </div>
+                <div class="col-md-6">
+                  <strong>Criado:</strong> {{ instance.created_at|date:"d/m/Y H:i" }}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_instance">
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.name.id_for_label }}" class="form-label">
+                  {{ form.name.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.name }}
+                <div class="form-text">{{ form.name.help_text }}</div>
+                {% if form.name.errors %}
+                  <div class="text-danger small">{{ form.name.errors }}</div>
+                {% endif %}
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.whatsapp_number.id_for_label }}" class="form-label">
+                  {{ form.whatsapp_number.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.whatsapp_number }}
+                <div class="form-text">{{ form.whatsapp_number.help_text }}</div>
+                {% if form.whatsapp_number.errors %}
+                  <div class="text-danger small">{{ form.whatsapp_number.errors }}</div>
+                {% endif %}
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label for="{{ form.connection_method.id_for_label }}" class="form-label">
+                {{ form.connection_method.label }}
+              </label>
+              {{ form.connection_method }}
+              <div class="form-text">{{ form.connection_method.help_text }}</div>
+              {% if form.connection_method.errors %}
+                <div class="text-danger small">{{ form.connection_method.errors }}</div>
+              {% endif %}
+            </div>
+            
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Voltar
+              </a>
+              <button type="submit" class="btn btn-primary" {% if not can_create_more and not instance_exists %}disabled{% endif %}>
+                <i class="fas fa-save me-2"></i>
+                {% if instance_exists %}Atualizar Instância{% else %}Criar Instância{% endif %}
+              </button>
+              {% if not can_create_more and not instance_exists %}
+                <small class="text-muted d-block mt-2">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Limite de instâncias atingido
+                </small>
+              {% endif %}
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+      <!-- Estatísticas (se conectado) -->
+      {% if instance and instance.is_connected %}
+        <div class="card stats-card mb-4">
+          <div class="card-body text-white">
+            <h5 class="card-title">
+              <i class="fas fa-chart-bar me-2"></i>Estatísticas
+            </h5>
+            
+            <div class="row text-center">
+              <div class="col-6 mb-3">
+                <div class="h3 mb-1">{{ stats.groups_count }}</div>
+                <small class="opacity-75">Grupos</small>
+              </div>
+              <div class="col-6 mb-3">
+                <div class="h3 mb-1">{{ stats.contacts_count }}</div>
+                <small class="opacity-75">Contatos</small>
+              </div>
+              <div class="col-6">
+                <div class="h3 mb-1">{{ stats.messages_sent }}</div>
+                <small class="opacity-75">Enviadas</small>
+              </div>
+              <div class="col-6">
+                <div class="h3 mb-1">{{ stats.messages_received }}</div>
+                <small class="opacity-75">Recebidas</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Informações do Plano -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-chart-bar me-2"></i>Suas Instâncias WhatsApp
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-12 mb-3">
+              <div class="d-flex align-items-center">
+                <div class="me-3">
+                  <i class="fas fa-mobile-alt fa-2x text-primary"></i>
+                </div>
+                <div>
+                  <h6 class="mb-1">Instâncias Ativas</h6>
+                  <span class="text-muted">{{ current_instances_count }} de {{ max_instances }}</span>
+                </div>
+              </div>
+            </div>
+            {% if subscription %}
+              <div class="col-12 mb-3">
+                <div class="d-flex align-items-center">
+                  <div class="me-3">
+                    <i class="fas fa-crown fa-2x text-warning"></i>
+                  </div>
+                  <div>
+                    <h6 class="mb-1">Plano Atual</h6>
+                    <span class="text-muted">{{ subscription.plan.name }}</span>
+                  </div>
+                </div>
+              </div>
+            {% else %}
+              <div class="col-12 mb-3">
+                <div class="alert alert-warning mb-0">
+                  <i class="fas fa-exclamation-triangle me-2"></i>
+                  <small>Sem plano ativo - Limite: 1 instância</small>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+          
+          <!-- Barra de Progresso -->
+          <div class="progress mb-3" style="height: 8px;">
+            <div class="progress-bar {% if current_instances_count >= max_instances %}bg-danger{% else %}bg-success{% endif %}" 
+                 style="width: {% widthratio current_instances_count max_instances 100 %}%"></div>
+          </div>
+          
+          {% if not can_create_more %}
+            <div class="alert alert-warning mb-0">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>Limite atingido!</strong> Você atingiu o limite de {{ max_instances }} instância(s) do seu plano.
+              {% if not subscription %}
+                <a href="{% url 'subscriptions:plans' %}" class="alert-link">Assine um plano para criar mais instâncias.</a>
+              {% else %}
+                <a href="{% url 'subscriptions:plans' %}" class="alert-link">Faça upgrade do seu plano para criar mais instâncias.</a>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Passos da Conexão -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-list-ol me-2"></i>Passos para Conectar
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="connection-steps">
+            <div class="connection-step {% if instance_exists %}completed{% elif not instance_exists %}active{% endif %}">
+              <h6>Configurar Instância</h6>
+              <p class="text-muted mb-0">Configure os dados da API WhatsApp</p>
+            </div>
+            
+            <div class="connection-step {% if instance and instance.status in 'connecting,qr_code' %}active{% elif instance and instance.is_connected %}completed{% endif %}">
+              <h6>Escanear QR Code</h6>
+              <p class="text-muted mb-0">Use seu celular para escanear o código</p>
+            </div>
+            
+            <div class="connection-step {% if instance and instance.is_connected %}completed{% endif %}">
+              <h6>WhatsApp Conectado</h6>
+              <p class="text-muted mb-0">Pronto para enviar mensagens!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ajuda -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-question-circle me-2"></i>Precisa de Ajuda?
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info">
+            <h6><i class="fas fa-info-circle me-2"></i>Dicas Importantes</h6>
+            <ul class="mb-0 small">
+              <li>O QR Code expira em alguns minutos</li>
+              <li>Mantenha o WhatsApp aberto durante a conexão</li>
+            </ul>
+          </div>
+          
+          <div class="alert alert-warning">
+            <h6><i class="fas fa-exclamation-triangle me-2"></i>Problemas Comuns</h6>
+            <ul class="mb-0 small">
+              <li><strong>QR Code não aparece:</strong> Verifique a API Key</li>
+              <li><strong>Conexão falha:</strong> Verifique a URL do gateway</li>
+              <li><strong>Desconecta sozinho:</strong> Problema no servidor da API</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Confirmação -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Remoção
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Tem certeza que deseja remover esta instância WhatsApp?</p>
+        <div class="alert alert-danger">
+          <strong>Atenção:</strong> Esta ação não pode ser desfeita. Todos os dados relacionados serão perdidos.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete">
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash me-2"></i>Sim, Remover
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Auto-refresh para conexão e status
+  {% if instance and instance.status in 'connecting,qr_code,pairing_code' %}
+    startConnectionPolling();
+  {% endif %}
+});
+
+function startConnectionPolling() {
+  const container = document.getElementById('connection-container');
+  let pollInterval;
+  
+  function checkConnectionStatus() {
+    fetch('{% url "whatsapp:get_qr_code_ajax" %}')
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          console.error('Erro ao buscar status:', data.error);
+          return;
+        }
+
+        console.log(data)
+        
+        if (data.status === 'connected') {
+          // Conectado! Recarregar página
+          clearInterval(pollInterval);
+          location.reload();
+        } else if (data.status === 'qr_code' && data.qr_code) {
+          // Mostrar QR Code
+          container.innerHTML = `
+            <img src="${data.qr_code}" class="qr-code-image" alt="QR Code">
+            <p class="text-muted mt-3">Escaneie este código com seu WhatsApp</p>
+            <small class="text-muted">O código expira em alguns minutos</small>
+          `;
+        } else if (data.status === 'pairing_code' && data.pairing_code) {
+          // Mostrar código de emparelhamento
+          container.innerHTML = `
+            <div class="text-center">
+              <div class="display-1 fw-bold text-primary mb-3" style="font-family: monospace; letter-spacing: 0.5em;">
+                ${data.pairing_code}
+              </div>
+              <p class="text-muted">Digite este código no seu WhatsApp</p>
+              <small class="text-muted">O código expira em alguns minutos</small>
+            </div>
+          `;
+        } else if (data.status === 'connecting') {
+          // Ainda conectando
+          container.innerHTML = `
+            <div class="pulse">
+              <i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+            </div>
+            <p class="text-muted">Aguardando conexão...</p>
+            <small class="text-muted">Isso pode levar alguns segundos</small>
+          `;
+        }
+      })
+      .catch(error => {
+        console.error('Erro na requisição:', error);
+        container.innerHTML = `
+          <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+          <p class="text-danger">Erro ao carregar dados de conexão</p>
+          <button class="btn btn-outline-primary" onclick="location.reload()">
+            <i class="fas fa-refresh me-2"></i>Tentar Novamente
+          </button>
+        `;
+      });
+  }
+  
+  // Verificar imediatamente e depois a cada 3 segundos
+  checkConnectionStatus();
+  pollInterval = setInterval(checkConnectionStatus, 3000);
+  
+  // Parar após 5 minutos (códigos expiram)
+  setTimeout(() => {
+    clearInterval(pollInterval);
+    if (container) {
+      container.innerHTML = `
+        <i class="fas fa-clock fa-3x text-warning mb-3"></i>
+        <p class="text-warning">Código expirado</p>
+        <button class="btn btn-warning" onclick="location.reload()">
+          <i class="fas fa-refresh me-2"></i>Gerar Novo Código
+        </button>
+      `;
+    }
+  }, 300000); // 5 minutos
+}
+
+{% if instance %}
+function syncData(type) {
+  const btn = event.target;
+  const originalText = btn.innerHTML;
+  
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sincronizando...';
+  btn.disabled = true;
+  
+  fetch('{% url "whatsapp:sync_data_ajax" instance.id %}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    },
+    body: `type=${type}`
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      alert(`Erro: ${data.error}`);
+    } else {
+      let message = 'Sincronização concluída!\n\n';
+      
+      if (data.results.groups) {
+        if (data.results.groups.success) {
+          message += `✓ Grupos: ${data.results.groups.synced} sincronizados\n`;
+        } else {
+          message += `✗ Grupos: ${data.results.groups.error}\n`;
+        }
+      }
+      
+      if (data.results.contacts) {
+        if (data.results.contacts.success) {
+          message += `✓ Contatos: ${data.results.contacts.synced} sincronizados\n`;
+        } else {
+          message += `✗ Contatos: ${data.results.contacts.error}\n`;
+        }
+      }
+      
+      alert(message);
+      
+      // Recarregar página para mostrar dados atualizados
+      setTimeout(() => location.reload(), 1000);
+    }
+  })
+  .catch(error => {
+    console.error('Erro:', error);
+    alert('Erro na sincronização. Tente novamente.');
+  })
+  .finally(() => {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  });
+}
+{% endif %}
+
+function confirmDelete() {
+  const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+  modal.show();
+}
+
+// Auto-refresh da página se estiver conectando (fallback)
+{% if instance and instance.status in 'connecting,qr_code,pairing_code' %}
+  setTimeout(() => {
+    if (document.visibilityState === 'visible') {
+      location.reload();
+    }
+  }, 60000); // 1 minuto
+{% endif %}
+</script>
+{% endblock %}

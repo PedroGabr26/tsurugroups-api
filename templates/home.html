@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+  Tsuru Groups - Automação WhatsApp Business
+{% endblock %}
+
+{% block content %}
+  <!-- Hero Section -->
+  <div class="hero text-center">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-lg-8">
+          <h1 class="fade-in">Automatize seu WhatsApp Business</h1>
+          <p class="lead fade-in-delay">Gerencie grupos, agende mensagens e automatize seu atendimento com a plataforma mais completa do mercado</p>
+          <div class="mt-4 fade-in-delay">
+            {% if not user.is_authenticated %}
+              <a href="{% url 'register' %}" class="btn btn-light btn-lg me-3"><i class="fas fa-rocket me-2"></i>Começar Grátis</a>
+              <a href="{% url 'subscriptions:plans' %}" class="btn btn-outline-light btn-lg"><i class="fas fa-eye me-2"></i>Ver Planos</a>
+            {% else %}
+              <a href="{% url 'dashboard' %}" class="btn btn-light btn-lg"><i class="fas fa-tachometer-alt me-2"></i>Ir para Dashboard</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features Section -->
+  <section class="py-5">
+    <div class="container">
+      <div class="row text-center mb-5">
+        <div class="col-lg-8 mx-auto">
+          <h2 class="fade-in">Por que escolher o Tsuru Groups?</h2>
+          <p class="lead text-muted fade-in-delay">Nossa plataforma oferece tudo que você precisa para automatizar e otimizar seu WhatsApp Business</p>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-4 col-md-6">
+          <div class="card h-100 text-center fade-in">
+            <div class="card-body">
+              <div class="text-primary mb-3">
+                <i class="fas fa-users fa-3x"></i>
+              </div>
+              <h5 class="card-title">Gerenciamento de Grupos</h5>
+              <p class="card-text">Organize e gerencie múltiplos grupos do WhatsApp de forma centralizada e eficiente.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="card h-100 text-center fade-in-delay">
+            <div class="card-body">
+              <div class="text-primary mb-3">
+                <i class="fas fa-clock fa-3x"></i>
+              </div>
+              <h5 class="card-title">Agendamento Inteligente</h5>
+              <p class="card-text">Agende mensagens para serem enviadas no momento ideal, aumentando o engajamento.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="card h-100 text-center fade-in">
+            <div class="card-body">
+              <div class="text-primary mb-3">
+                <i class="fas fa-robot fa-3x"></i>
+              </div>
+              <h5 class="card-title">Automação Avançada</h5>
+              <p class="card-text">Crie fluxos automatizados de mensagens e respostas para otimizar seu atendimento.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="card h-100 text-center fade-in-delay">
+            <div class="card-body">
+              <div class="text-primary mb-3">
+                <i class="fas fa-chart-bar fa-3x"></i>
+              </div>
+              <h5 class="card-title">Relatórios Detalhados</h5>
+              <p class="card-text">Acompanhe métricas de engajamento e performance das suas campanhas em tempo real.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="card h-100 text-center fade-in">
+            <div class="card-body">
+              <div class="text-primary mb-3">
+                <i class="fas fa-shield-alt fa-3x"></i>
+              </div>
+              <h5 class="card-title">Segurança Garantida</h5>
+              <p class="card-text">Seus dados e mensagens são protegidos com criptografia de ponta a ponta.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="card h-100 text-center fade-in-delay">
+            <div class="card-body">
+              <div class="text-primary mb-3">
+                <i class="fas fa-headset fa-3x"></i>
+              </div>
+              <h5 class="card-title">Suporte 24/7</h5>
+              <p class="card-text">Nossa equipe está sempre disponível para ajudá-lo a aproveitar ao máximo a plataforma.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Statistics Section -->
+  <section class="bg-light py-5">
+    <div class="container">
+      <div class="row text-center">
+        <div class="col-lg-3 col-md-6 mb-4">
+          <div class="stat-card">
+            <div class="stat-number fade-in">10K+</div>
+            <div class="stat-label fade-in-delay">Usuários Ativos</div>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+          <div class="stat-card">
+            <div class="stat-number fade-in">1M+</div>
+            <div class="stat-label fade-in-delay">Mensagens Enviadas</div>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+          <div class="stat-card">
+            <div class="stat-number fade-in">99.9%</div>
+            <div class="stat-label fade-in-delay">Uptime Garantido</div>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+          <div class="stat-card">
+            <div class="stat-number fade-in">24/7</div>
+            <div class="stat-label fade-in-delay">Suporte Técnico</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="bg-primary text-white py-5">
+    <div class="container text-center">
+      <div class="row justify-content-center">
+        <div class="col-lg-8">
+          <h2 class="fade-in">Pronto para começar?</h2>
+          <p class="lead mb-4 fade-in-delay">Junte-se a milhares de empresas que já automatizaram seu WhatsApp Business</p>
+          {% if not user.is_authenticated %}
+            <div class="fade-in-delay">
+              <a href="{% url 'register' %}" class="btn btn-light btn-lg me-3"><i class="fas fa-rocket me-2"></i>Teste Grátis por 14 Dias</a>
+              <a href="{% url 'subscriptions:plans' %}" class="btn btn-outline-light btn-lg"><i class="fas fa-info-circle me-2"></i>Conhecer Planos</a>
+            </div>
+          {% else %}
+            <div class="fade-in-delay">
+              <a href="{% url 'dashboard' %}" class="btn btn-light btn-lg"><i class="fas fa-tachometer-alt me-2"></i>Acessar Dashboard</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

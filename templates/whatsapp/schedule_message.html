@@ -1,0 +1,572 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+  {{ page_title }} - Tsuru Groups
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .recipient-section {
+    display: none;
+  }
+  .recipient-section.active {
+    display: block;
+  }
+  .recipient-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+  }
+  .recipient-item {
+    padding: 0.25rem;
+    border-bottom: 1px solid #f8f9fa;
+  }
+  .recipient-item:last-child {
+    border-bottom: none;
+  }
+  .scheduled-message-item {
+    border-left: 4px solid #007bff;
+    transition: all 0.3s ease;
+  }
+  .scheduled-message-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+  .status-badge {
+    font-size: 0.75rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <!-- Formulário de Agendamento -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-warning text-dark">
+          <h4 class="mb-0">
+            <i class="fas fa-clock me-2"></i>{{ page_title }}
+          </h4>
+        </div>
+        <div class="card-body">
+          <form method="post" id="scheduleMessageForm">
+            {% csrf_token %}
+            
+            <!-- Nome e Descrição -->
+            <div class="row mb-3">
+              <div class="col-md-8">
+                <label for="{{ form.name.id_for_label }}" class="form-label">
+                  {{ form.name.label }}
+                  <span class="text-danger">*</span>
+                </label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                  <div class="text-danger small">{{ form.name.errors }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-4">
+                <label for="{{ form.whatsapp_instance.id_for_label }}" class="form-label">
+                  {{ form.whatsapp_instance.label }}
+                  <span class="text-danger">*</span>
+                </label>
+                {{ form.whatsapp_instance }}
+                {% if form.whatsapp_instance.errors %}
+                  <div class="text-danger small">{{ form.whatsapp_instance.errors }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.description.id_for_label }}" class="form-label">
+                {{ form.description.label }}
+              </label>
+              {{ form.description }}
+              {% if form.description.errors %}
+                <div class="text-danger small">{{ form.description.errors }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Data e Hora do Agendamento -->
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label for="{{ form.schedule_date.id_for_label }}" class="form-label">
+                  {{ form.schedule_date.label }}
+                  <span class="text-danger">*</span>
+                </label>
+                {{ form.schedule_date }}
+                {% if form.schedule_date.errors %}
+                  <div class="text-danger small">{{ form.schedule_date.errors }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6">
+                <label for="{{ form.schedule_time.id_for_label }}" class="form-label">
+                  {{ form.schedule_time.label }}
+                  <span class="text-danger">*</span>
+                </label>
+                {{ form.schedule_time }}
+                {% if form.schedule_time.errors %}
+                  <div class="text-danger small">{{ form.schedule_time.errors }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Tipo de Destinatário -->
+            <div class="mb-3">
+              <label for="{{ form.recipient_type.id_for_label }}" class="form-label">
+                {{ form.recipient_type.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.recipient_type }}
+              {% if form.recipient_type.errors %}
+                <div class="text-danger small">{{ form.recipient_type.errors }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Seções de Destinatários -->
+            <div id="groups-section" class="recipient-section mb-3">
+              <label class="form-label">{{ form.groups.label }}</label>
+              <div class="recipient-list">
+                {{ form.groups }}
+              </div>
+              {% if form.groups.errors %}
+                <div class="text-danger small">{{ form.groups.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div id="contacts-section" class="recipient-section mb-3">
+              <label class="form-label">{{ form.contacts.label }}</label>
+              <div class="recipient-list">
+                {{ form.contacts }}
+              </div>
+              {% if form.contacts.errors %}
+                <div class="text-danger small">{{ form.contacts.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div id="numbers-section" class="recipient-section mb-3">
+              <label for="{{ form.phone_numbers.id_for_label }}" class="form-label">
+                {{ form.phone_numbers.label }}
+              </label>
+              {{ form.phone_numbers }}
+              <div class="form-text">
+                Digite os números no formato internacional (ex: 5511999999999), um por linha.
+              </div>
+              {% if form.phone_numbers.errors %}
+                <div class="text-danger small">{{ form.phone_numbers.errors }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Conteúdo da Mensagem -->
+            <div class="mb-3">
+              <label for="{{ form.message_content.id_for_label }}" class="form-label">
+                {{ form.message_content.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.message_content }}
+              <div class="form-text">
+                <span id="char-count">0</span>/1000 caracteres
+              </div>
+              {% if form.message_content.errors %}
+                <div class="text-danger small">{{ form.message_content.errors }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Configurações de Envio -->
+            <div class="card mb-3">
+              <div class="card-header">
+                <h6 class="mb-0">
+                  <i class="fas fa-cog me-2"></i>Configurações de Envio
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <label for="{{ form.delay_min.id_for_label }}" class="form-label">
+                      {{ form.delay_min.label }}
+                    </label>
+                    {{ form.delay_min }}
+                    {% if form.delay_min.errors %}
+                      <div class="text-danger small">{{ form.delay_min.errors }}</div>
+                    {% endif %}
+                  </div>
+                  <div class="col-md-6">
+                    <label for="{{ form.delay_max.id_for_label }}" class="form-label">
+                      {{ form.delay_max.label }}
+                    </label>
+                    {{ form.delay_max }}
+                    {% if form.delay_max.errors %}
+                      <div class="text-danger small">{{ form.delay_max.errors }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="form-text">
+                  Intervalo aleatório entre mensagens para evitar bloqueios.
+                </div>
+              </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Voltar
+              </a>
+              <button type="submit" class="btn btn-warning" id="scheduleButton">
+                <i class="fas fa-clock me-2"></i>Agendar Mensagem
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar com Mensagens Recentes e Dicas -->
+    <div class="col-lg-4">
+      <!-- Mensagens Agendadas Recentes -->
+      {% if scheduled_messages %}
+      <div class="card shadow-sm mb-4">
+        <div class="card-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="fas fa-list me-2"></i>Recentes
+            </h5>
+            <a href="{% url 'whatsapp:scheduled_messages_list' %}" class="btn btn-sm btn-outline-primary">
+              Ver Todas
+            </a>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          {% for message in scheduled_messages %}
+          <div class="scheduled-message-item p-3 border-bottom">
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="flex-grow-1">
+                <h6 class="mb-1">{{ message.name }}</h6>
+                <p class="text-muted small mb-1">
+                  {{ message.message_content|truncatechars:50 }}
+                </p>
+                <small class="text-muted">
+                  <i class="fas fa-calendar me-1"></i>
+                  {{ message.schedule_date|date:"d/m/Y" }} às {{ message.schedule_time|time:"H:i" }}
+                </small>
+              </div>
+              <div class="text-end">
+                {% if message.status == 'pending' %}
+                  <span class="badge bg-secondary status-badge">Pendente</span>
+                {% elif message.status == 'scheduled' %}
+                  <span class="badge bg-warning status-badge">Agendado</span>
+                {% elif message.status == 'sending' %}
+                  <span class="badge bg-info status-badge">Enviando</span>
+                {% elif message.status == 'sent' %}
+                  <span class="badge bg-success status-badge">Enviado</span>
+                {% elif message.status == 'failed' %}
+                  <span class="badge bg-danger status-badge">Falhou</span>
+                {% elif message.status == 'cancelled' %}
+                  <span class="badge bg-dark status-badge">Cancelado</span>
+                {% endif %}
+                <div class="small text-muted mt-1">
+                  {{ message.total_recipients }} destinatários
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Dicas -->
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-lightbulb me-2"></i>Dicas de Agendamento
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info">
+            <h6><i class="fas fa-info-circle me-2"></i>Horários Recomendados</h6>
+            <ul class="mb-0 small">
+              <li><strong>Manhã:</strong> 9h às 11h (boa abertura)</li>
+              <li><strong>Tarde:</strong> 14h às 16h (engajamento médio)</li>
+              <li><strong>Noite:</strong> 19h às 21h (melhor horário)</li>
+              <li><strong>Evite:</strong> Madrugada e finais de semana</li>
+            </ul>
+          </div>
+
+          <div class="alert alert-warning">
+            <h6><i class="fas fa-exclamation-triangle me-2"></i>Limites do WhatsApp</h6>
+            <ul class="mb-0 small">
+              <li>Máximo 256 caracteres por mensagem para grupos</li>
+              <li>Respeite o intervalo entre mensagens</li>
+              <li>Evite mensagens idênticas em massa</li>
+              <li>WhatsApp pode limitar contas suspeitas</li>
+            </ul>
+          </div>
+
+          <div class="alert alert-success">
+            <h6><i class="fas fa-check-circle me-2"></i>Boas Práticas</h6>
+            <ul class="mb-0 small">
+              <li>Teste com poucos contatos primeiro</li>
+              <li>Personalize as mensagens quando possível</li>
+              <li>Monitore as taxas de entrega</li>
+              <li>Mantenha uma lista de contatos atualizada</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const recipientTypeField = document.getElementById('id_recipient_type');
+  const messageContentField = document.getElementById('id_message_content');
+  const instanceField = document.getElementById('id_whatsapp_instance');
+  const charCount = document.getElementById('char-count');
+  const scheduleButton = document.getElementById('scheduleButton');
+  const scheduleDateField = document.getElementById('id_schedule_date');
+  const scheduleTimeField = document.getElementById('id_schedule_time');
+
+  // Definir data mínima como hoje
+  const today = new Date().toISOString().split('T')[0];
+  scheduleDateField.setAttribute('min', today);
+
+  // Função para mostrar/ocultar seções de destinatários
+  function toggleRecipientSections() {
+    const recipientType = recipientTypeField.value;
+    const sections = document.querySelectorAll('.recipient-section');
+    
+    sections.forEach(section => {
+      section.classList.remove('active');
+    });
+
+    if (recipientType === 'groups') {
+      document.getElementById('groups-section').classList.add('active');
+    } else if (recipientType === 'contacts') {
+      document.getElementById('contacts-section').classList.add('active');
+    } else if (recipientType === 'mixed') {
+      document.getElementById('groups-section').classList.add('active');
+      document.getElementById('contacts-section').classList.add('active');
+    }
+    
+    // Números sempre disponível como adicional
+    if (recipientType !== 'groups' && recipientType !== 'contacts') {
+      document.getElementById('numbers-section').classList.add('active');
+    }
+  }
+
+  // Função para atualizar contador de caracteres
+  function updateCharCount() {
+    const count = messageContentField.value.length;
+    charCount.textContent = count;
+    
+    if (count > 1000) {
+      charCount.classList.add('text-danger');
+    } else {
+      charCount.classList.remove('text-danger');
+    }
+  }
+
+  // Função para carregar destinatários via AJAX
+  function loadRecipients() {
+    const instanceId = instanceField.value;
+    const recipientType = recipientTypeField.value;
+    
+    if (!instanceId) return;
+
+    // Carregar grupos se necessário
+    if (recipientType === 'groups' || recipientType === 'mixed') {
+      loadGroups(instanceId);
+    }
+
+    // Carregar contatos se necessário
+    if (recipientType === 'contacts' || recipientType === 'mixed') {
+      loadContacts(instanceId);
+    }
+  }
+
+  // Função para carregar grupos
+  function loadGroups(instanceId) {
+    fetch(`{% url 'whatsapp:get_recipients_ajax' %}?instance_id=${instanceId}&type=groups`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          console.error('Erro ao carregar grupos:', data.error);
+          return;
+        }
+        updateGroupOptions(data.groups);
+      })
+      .catch(error => {
+        console.error('Erro na requisição AJAX:', error);
+      });
+  }
+
+  // Função para carregar contatos
+  function loadContacts(instanceId) {
+    fetch(`{% url 'whatsapp:get_recipients_ajax' %}?instance_id=${instanceId}&type=contacts`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          console.error('Erro ao carregar contatos:', data.error);
+          return;
+        }
+        updateContactOptions(data.contacts);
+      })
+      .catch(error => {
+        console.error('Erro na requisição AJAX:', error);
+      });
+  }
+
+  // Função para atualizar opções de grupos
+  function updateGroupOptions(groups) {
+    const groupsContainer = document.querySelector('#groups-section .recipient-list');
+    if (!groupsContainer) return;
+
+    let html = '';
+    groups.forEach(group => {
+      html += `
+        <div class="recipient-item">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="groups" value="${group.id}" id="group_${group.id}">
+            <label class="form-check-label" for="group_${group.id}">
+              <strong>${group.name}</strong>
+              <small class="text-muted d-block">${group.participant_count} participantes</small>
+            </label>
+          </div>
+        </div>
+      `;
+    });
+    groupsContainer.innerHTML = html;
+  }
+
+  // Função para atualizar opções de contatos
+  function updateContactOptions(contacts) {
+    const contactsContainer = document.querySelector('#contacts-section .recipient-list');
+    if (!contactsContainer) return;
+
+    let html = '';
+    contacts.forEach(contact => {
+      html += `
+        <div class="recipient-item">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="contacts" value="${contact.id}" id="contact_${contact.id}">
+            <label class="form-check-label" for="contact_${contact.id}">
+              <strong>${contact.name || contact.phone_number}</strong>
+              <small class="text-muted d-block">${contact.phone_number}</small>
+            </label>
+          </div>
+        </div>
+      `;
+    });
+    contactsContainer.innerHTML = html;
+  }
+
+  // Função para validar data e hora
+  function validateDateTime() {
+    const scheduleDate = new Date(scheduleDateField.value);
+    const scheduleTime = scheduleTimeField.value;
+    const now = new Date();
+    
+    if (scheduleDateField.value === today && scheduleTime) {
+      const [hours, minutes] = scheduleTime.split(':');
+      const scheduledDateTime = new Date();
+      scheduledDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      if (scheduledDateTime <= now) {
+        alert('O horário de agendamento deve ser no futuro.');
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  // Event listeners
+  recipientTypeField.addEventListener('change', function() {
+    toggleRecipientSections();
+    loadRecipients();
+  });
+  instanceField.addEventListener('change', loadRecipients);
+  messageContentField.addEventListener('input', updateCharCount);
+  scheduleDateField.addEventListener('change', validateDateTime);
+  scheduleTimeField.addEventListener('change', validateDateTime);
+
+  // Inicializar
+  toggleRecipientSections();
+  updateCharCount();
+
+  // Validação do formulário
+  document.getElementById('scheduleMessageForm').addEventListener('submit', function(e) {
+    const instanceId = instanceField.value;
+    const messageContent = messageContentField.value.trim();
+    const recipientType = recipientTypeField.value;
+    const scheduleDate = scheduleDateField.value;
+    const scheduleTime = scheduleTimeField.value;
+    const campaignName = document.getElementById('id_name').value.trim();
+    
+    if (!instanceId) {
+      e.preventDefault();
+      alert('Selecione uma instância WhatsApp.');
+      return;
+    }
+    
+    if (!campaignName) {
+      e.preventDefault();
+      alert('Digite o nome da campanha.');
+      return;
+    }
+    
+    if (!messageContent) {
+      e.preventDefault();
+      alert('Digite o conteúdo da mensagem.');
+      return;
+    }
+    
+    if (!scheduleDate || !scheduleTime) {
+      e.preventDefault();
+      alert('Selecione a data e hora do agendamento.');
+      return;
+    }
+    
+    if (!validateDateTime()) {
+      e.preventDefault();
+      return;
+    }
+    
+    // Verificar se pelo menos um destinatário foi selecionado
+    let hasRecipients = false;
+    
+    if (recipientType === 'groups') {
+      hasRecipients = document.querySelectorAll('#groups-section input[type="checkbox"]:checked').length > 0;
+    } else if (recipientType === 'contacts') {
+      hasRecipients = document.querySelectorAll('#contacts-section input[type="checkbox"]:checked').length > 0;
+    } else if (recipientType === 'mixed') {
+      const groupsChecked = document.querySelectorAll('#groups-section input[type="checkbox"]:checked').length;
+      const contactsChecked = document.querySelectorAll('#contacts-section input[type="checkbox"]:checked').length;
+      hasRecipients = groupsChecked > 0 || contactsChecked > 0;
+    }
+    
+    // Verificar números avulsos
+    const phoneNumbers = document.getElementById('id_phone_numbers').value.trim();
+    if (phoneNumbers.length > 0) {
+      hasRecipients = true;
+    }
+    
+    if (!hasRecipients) {
+      e.preventDefault();
+      alert('Selecione pelo menos um destinatário.');
+      return;
+    }
+
+    // Desabilitar botão durante envio
+    scheduleButton.disabled = true;
+    scheduleButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Agendando...';
+  });
+});
+</script>
+{% endblock %}

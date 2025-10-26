@@ -1,0 +1,389 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+  {{ page_title }} - Tsuru Groups
+{% endblock %}
+
+{% block extra_css %}
+  <style>
+    .instance-card {
+      border-left: 4px solid #007bff;
+      transition: all 0.3s ease;
+    }
+    
+    .instance-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .instance-card.connected {
+      border-left-color: #28a745;
+    }
+    
+    .instance-card.connecting {
+      border-left-color: #ffc107;
+    }
+    
+    .instance-card.disconnected {
+      border-left-color: #dc3545;
+    }
+    
+    .instance-card.error {
+      border-left-color: #fd7e14;
+    }
+    
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 0.5rem;
+    }
+    
+    .status-connected {
+      background-color: #28a745;
+    }
+    .status-connecting {
+      background-color: #ffc107;
+    }
+    .status-disconnected {
+      background-color: #dc3545;
+    }
+    .status-error {
+      background-color: #fd7e14;
+    }
+    .status-qr_code {
+      background-color: #17a2b8;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="container mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h2><i class="fas fa-mobile-alt me-2"></i>{{ page_title }}</h2>
+            <p class="text-muted mb-0">Gerencie todas as suas instâncias WhatsApp</p>
+          </div>
+          <div>
+            <a href="{% url 'whatsapp:connect' %}?instance=new" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Nova Instância</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de Instâncias -->
+    <div class="row">
+      <div class="col-12">
+        {% if instances %}
+          <div class="row g-4">
+            {% for instance in instances %}
+              <div class="col-lg-6 col-xl-4">
+                <div class="card instance-card {{ instance.status }} h-100">
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                      <span class="status-indicator status-{{ instance.status }}"></span>
+                      {{ instance.name }}
+                    </h5>
+
+                    <div class="dropdown">
+                      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"><i class="fas fa-cog"></i></button>
+                      <ul class="dropdown-menu">
+                        <li>
+                          <a class="dropdown-item" href="{% url 'whatsapp:connect' %}?instance={{ instance.id }}"><i class="fas fa-edit me-2"></i>Editar</a>
+                        </li>
+                        {% if instance.is_connected %}
+                          <li>
+                            <a class="dropdown-item" href="#" onclick="disconnectInstance('{{ instance.id }}')"><i class="fas fa-unlink me-2"></i>Desconectar</a>
+                          </li>
+                        {% else %}
+                          <li>
+                            <a class="dropdown-item" href="#" onclick="connectInstance('{{ instance.id }}')"><i class="fas fa-link me-2"></i>Conectar</a>
+                          </li>
+                        {% endif %}
+                        <li>
+                          <hr class="dropdown-divider" />
+                        </li>
+                        <li>
+                          <a class="dropdown-item text-danger" href="#" onclick="deleteInstance('{{ instance.id }}', '{{ instance.name }}')"><i class="fas fa-trash me-2"></i>Remover</a>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div class="card-body">
+                    <!-- Status -->
+                    <div class="mb-3">
+                      {% if instance.status == 'connected' %}
+                        <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Conectado</span>
+                        {% if instance.phone_number %}
+                          <small class="text-muted d-block mt-1"><i class="fas fa-phone me-1"></i>{{ instance.phone_number }}</small>
+                        {% endif %}
+                      {% elif instance.status == 'connecting' %}
+                        <span class="badge bg-warning"><i class="fas fa-spinner fa-spin me-1"></i>Conectando</span>
+                      {% elif instance.status == 'qr_code' %}
+                        <span class="badge bg-info"><i class="fas fa-qrcode me-1"></i>QR Code</span>
+                      {% elif instance.status == 'error' %}
+                        <span class="badge bg-danger"><i class="fas fa-exclamation-triangle me-1"></i>Erro</span>
+                      {% else %}
+                        <span class="badge bg-secondary"><i class="fas fa-times-circle me-1"></i>Desconectado</span>
+                      {% endif %}
+                    </div>
+
+                    <!-- Informações da Instância -->
+                    <div class="small text-muted mb-3">
+                      <div>
+                        <strong>Sistema:</strong> {{ instance.system_name }}
+                      </div>
+                      <div>
+                        <strong>Número:</strong> {{ instance.whatsapp_number }}
+                      </div>
+                      <div>
+                        <strong>Método:</strong>
+                        {% if instance.connection_method == 'qr_code' %}
+                          <i class="fas fa-qrcode me-1"></i>QR Code
+                        {% else %}
+                          <i class="fas fa-mobile-alt me-1"></i>Código
+                        {% endif %}
+                      </div>
+                      <div>
+                        <strong>Criado:</strong> {{ instance.created_at|date:'d/m/Y' }}
+                      </div>
+                    </div>
+
+                    <!-- Estatísticas -->
+                    {% if instance.is_connected %}
+                      <div class="row text-center">
+                        <div class="col-3">
+                          <div class="text-primary fw-bold">{{ instance.groups.count }}</div>
+                          <small class="text-muted">Grupos</small>
+                        </div>
+                        <div class="col-3">
+                          <div class="text-success fw-bold">{{ instance.contacts.count }}</div>
+                          <small class="text-muted">Contatos</small>
+                        </div>
+                        <div class="col-3">
+                          <div class="text-info fw-bold">{{ instance.messages_sent }}</div>
+                          <small class="text-muted">Enviadas</small>
+                        </div>
+                        <div class="col-3">
+                          <div class="text-warning fw-bold">{{ instance.messages_received }}</div>
+                          <small class="text-muted">Recebidas</small>
+                        </div>
+                      </div>
+                    {% endif %}
+
+                    <!-- Última Atividade -->
+                    <div class="mt-3 pt-3 border-top">
+                      <small class="text-muted">
+                        {% if instance.last_connected_at %}
+                          <i class="fas fa-clock me-1"></i>
+                          Última conexão: {{ instance.last_connected_at|date:'d/m/Y H:i' }}
+                        {% else %}
+                          <i class="fas fa-info-circle me-1"></i>
+                          Nunca conectado
+                        {% endif %}
+                      </small>
+                    </div>
+                  </div>
+
+                  <!-- Ações Rápidas -->
+                  <div class="card-footer bg-transparent">
+                    <div class="d-flex justify-content-between">
+                      <a href="{% url 'whatsapp:connect' %}?instance={{ instance.id }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-cog me-1"></i>Gerenciar</a>
+
+                      {% if instance.is_connected %}
+                        <div class="btn-group btn-group-sm">
+                          <a href="{% url 'whatsapp:send_message' %}?instance={{ instance.id }}" class="btn btn-outline-success"><i class="fas fa-paper-plane me-1"></i>Enviar</a>
+                          <a href="{% url 'whatsapp:schedule_message' %}?instance={{ instance.id }}" class="btn btn-outline-warning"><i class="fas fa-clock me-1"></i>Agendar</a>
+                        </div>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <!-- Estado Vazio -->
+          <div class="card">
+            <div class="card-body text-center py-5">
+              <i class="fas fa-mobile-alt fa-4x text-muted mb-4"></i>
+              <h4 class="text-muted">Nenhuma instância WhatsApp</h4>
+              <p class="text-muted mb-4">
+                Você ainda não configurou nenhuma instância WhatsApp.<br />
+                Crie sua primeira instância para começar a enviar mensagens.
+              </p>
+              <a href="{% url 'whatsapp:connect' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Criar Primeira Instância</a>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmação -->
+  <div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalTitle"><i class="fas fa-exclamation-triangle me-2"></i>Confirmar Ação</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="modalBody">
+          <!-- Conteúdo dinâmico -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="confirmButton">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+let currentAction = null;
+let currentInstanceId = null;
+
+function connectInstance(instanceId) {
+  currentAction = 'connect';
+  currentInstanceId = instanceId;
+  
+  document.getElementById('modalTitle').innerHTML = '<i class="fas fa-link me-2"></i>Conectar Instância';
+  document.getElementById('modalBody').innerHTML = `
+    <p>Deseja iniciar a conexão desta instância WhatsApp?</p>
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle me-2"></i>
+      Você precisará escanear um QR Code com seu celular.
+    </div>
+  `;
+  document.getElementById('confirmButton').className = 'btn btn-success';
+  document.getElementById('confirmButton').innerHTML = '<i class="fas fa-link me-2"></i>Conectar';
+  
+  const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+  modal.show();
+}
+
+function disconnectInstance(instanceId) {
+  currentAction = 'disconnect';
+  currentInstanceId = instanceId;
+  
+  document.getElementById('modalTitle').innerHTML = '<i class="fas fa-unlink me-2"></i>Desconectar Instância';
+  document.getElementById('modalBody').innerHTML = `
+    <p>Deseja desconectar esta instância WhatsApp?</p>
+    <div class="alert alert-warning">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      A instância será desconectada e você precisará reconectar para usar novamente.
+    </div>
+  `;
+  document.getElementById('confirmButton').className = 'btn btn-warning';
+  document.getElementById('confirmButton').innerHTML = '<i class="fas fa-unlink me-2"></i>Desconectar';
+  
+  const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+  modal.show();
+}
+
+function deleteInstance(instanceId, instanceName) {
+  currentAction = 'delete';
+  currentInstanceId = instanceId;
+  
+  document.getElementById('modalTitle').innerHTML = '<i class="fas fa-trash me-2"></i>Remover Instância';
+  document.getElementById('modalBody').innerHTML = `
+    <p>Tem certeza que deseja remover a instância <strong>${instanceName}</strong>?</p>
+    <div class="alert alert-danger">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      <strong>Atenção:</strong> Esta ação não pode ser desfeita. Todos os dados relacionados serão perdidos.
+    </div>
+  `;
+  document.getElementById('confirmButton').className = 'btn btn-danger';
+  document.getElementById('confirmButton').innerHTML = '<i class="fas fa-trash me-2"></i>Remover';
+  
+  const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+  modal.show();
+}
+
+document.getElementById('confirmButton').addEventListener('click', function() {
+  if (!currentAction || !currentInstanceId) return;
+  
+  const button = this;
+  const originalText = button.innerHTML;
+  
+  button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processando...';
+  button.disabled = true;
+  
+  // Criar formulário temporário para enviar a ação
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `{% url 'whatsapp:connect' %}`;
+  
+  // CSRF Token
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const csrfInput = document.createElement('input');
+  csrfInput.type = 'hidden';
+  csrfInput.name = 'csrfmiddlewaretoken';
+  csrfInput.value = csrfToken;
+  form.appendChild(csrfInput);
+  
+  // Action
+  const actionInput = document.createElement('input');
+  actionInput.type = 'hidden';
+  actionInput.name = 'action';
+  actionInput.value = currentAction;
+  form.appendChild(actionInput);
+  
+  // Instance ID (se necessário)
+  if (currentInstanceId) {
+    const instanceInput = document.createElement('input');
+    instanceInput.type = 'hidden';
+    instanceInput.name = 'instance_id';
+    instanceInput.value = currentInstanceId;
+    form.appendChild(instanceInput);
+  }
+  
+  // Submeter formulário
+  document.body.appendChild(form);
+  form.submit();
+});
+
+// Auto-refresh para instâncias que estão conectando
+{% for instance in instances %}
+  {% if instance.status in 'connecting,qr_code' %}
+    setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        location.reload();
+      }
+    }, 30000); // 30 segundos
+  {% endif %}
+{% endfor %}
+
+// Atualizar status das instâncias a cada minuto
+setInterval(() => {
+  if (document.visibilityState === 'visible') {
+    // Fazer uma requisição AJAX para atualizar status
+    fetch('{% url "whatsapp:instances_list" %}', {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        // Se houver mudanças significativas, recarregar a página
+        const hasConnectingInstances = document.querySelectorAll('.connecting, .status-qr_code').length > 0;
+        if (hasConnectingInstances) {
+          location.reload();
+        }
+      }
+    })
+    .catch(error => {
+      console.log('Erro ao verificar status:', error);
+    });
+  }
+}, 60000); // 1 minuto
+</script>
+{% endblock %}

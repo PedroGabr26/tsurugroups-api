@@ -1,0 +1,64 @@
+[tool.poetry]
+name = "tsuru-groups"
+version = "0.1.0"
+description = "Tsuru Groups - Microsaas para agendamento de mensagens WhatsApp"
+authors = ["Seu Nome <seu@email.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+django = ">=4.2,<5.0"
+djangorestframework = "^3.14.0"
+python-decouple = "^3.8"
+psycopg2-binary = "^2.9.9"
+celery = "^5.3.4"
+redis = "^5.0.1"
+django-cors-headers = "^4.3.1"
+django-extensions = "^3.2.3"
+pillow = "^10.1.0"
+requests = "^2.31.0"
+stripe = "^7.8.0"
+django-allauth = "^0.57.0"
+whitenoise = "^6.6.0"
+gunicorn = "^21.2.0"
+django-simple-history = "^3.4.0"
+django-rq = "^2.10.2"
+rq-scheduler = "^0.13.1"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.11.0"
+isort = "^5.12.0"
+flake8 = "^6.1.0"
+pytest = "^7.4.3"
+pytest-django = "^4.7.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+line_length = 88
