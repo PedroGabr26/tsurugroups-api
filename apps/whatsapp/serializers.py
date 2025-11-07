@@ -3,7 +3,7 @@ Serializers for WhatsApp app.
 """
 from rest_framework import serializers
 from django.utils import timezone
-from .models import WhatsAppInstance, WhatsAppGroup, WhatsAppGroupParticipant, WhatsAppContact, WhatsAppMessage
+from .models import WhatsAppInstance, WhatsAppGroup, WhatsAppGroupParticipant, WhatsAppContact, WhatsAppMessage, WhatsAppCampaign
 
 
 class WhatsAppInstanceSerializer(serializers.ModelSerializer):
@@ -263,3 +263,42 @@ class GroupMembersSerializer(serializers.Serializer):
     members = serializers.ListField(child=serializers.DictField())
     total_count = serializers.IntegerField()
     admin_count = serializers.IntegerField()
+
+
+
+class WhatsappCampaignSerializer(serializers.ModelSerializer):
+    """Serializer para campanhas de WhatsApp."""
+
+    # Campos extras de leitura
+    instance_name = serializers.CharField(source='whatsapp_instance.name', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    target_contacts = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=WhatsAppContact.objects.all()
+    )
+
+    class Meta:
+        model = WhatsAppCampaign
+        fields = [
+            'name', 'whatsapp_instance', 'created_by', 'message_content', 
+            'target_contacts', 'scheduled_at', 'is_active','created_at', 'created_by_name','instance_name' 
+        ]
+        read_only_fields = [
+            'id',
+            'instance_name',
+            'created_by_name',
+            'created_at'
+        ]   
+    
+    def create(self, validated_data):
+        """Define o usuário criador automaticamente."""
+        user = self.context['request'].user
+        validated_data['created_by'] = user
+        campaign = super().create(validated_data)
+        return campaign
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context  

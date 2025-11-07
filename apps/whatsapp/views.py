@@ -42,6 +42,7 @@ from .serializers import (
     WhatsAppStatsSerializer,
     MessageStatsSerializer,
     GroupMembersSerializer,
+    WhatsappCampaignSerializer,
 )
 from .services import WhatsAppAPIService, WhatsAppInstanceManager
 
@@ -1511,31 +1512,46 @@ def get_instances_details(request):
 
 
 
-@api_view(["GET"])
+@api_view(["GET", "POST"])
 def campaings_details(request):
-    campaigns = WhatsAppCampaign.objects.order_by('-created_at')[:5]
+    if request.method == "GET":
+        campaigns = WhatsAppCampaign.objects.order_by('-created_at')[:5]
 
-    activities = []
-    for campaign in campaigns:
-            # Determina o status
-        if campaign.is_active and campaign.scheduled_at and campaign.scheduled_at > now():
-            status_label = "Agendado"
-            status_color = "blue"
-        elif campaign.is_active:
-            status_label = "Ativo"
-            status_color = "green"
-        else:
-            status_label = "Concluído"
-            status_color = "gray"
+        activities = []
+        for campaign in campaigns:
+                # Determina o status
+            if campaign.is_active and campaign.scheduled_at and campaign.scheduled_at > now():
+                status_label = "Agendado"
+                status_color = "blue"
+            elif campaign.is_active:
+                status_label = "Ativo"
+                status_color = "green"
+            else:
+                status_label = "Concluído"
+                status_color = "gray"
 
-        activities.append({
-            "title": campaign.name,
-            "date": campaign.scheduled_at.strftime("%Y-%m-%d") if campaign.scheduled_at else campaign.created_at.strftime("%Y-%m-%d"),
-            "status": status_label,
-            "status_color": status_color
-        })
+            activities.append({
+                "title": campaign.name,
+                "date": campaign.scheduled_at.strftime("%Y-%m-%d") if campaign.scheduled_at else campaign.created_at.strftime("%Y-%m-%d"),
+                "status": status_label,
+                "status_color": status_color
+            })
 
-    return Response({"recent_activities": activities}, status=status.HTTP_200_OK)
+        return Response({"recent_activities": activities}, status=status.HTTP_200_OK)
+    elif request.method == "POST":
+        serializer = WhatsappCampaignSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+        
+
 
 
 

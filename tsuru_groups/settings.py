@@ -26,8 +26,9 @@ DJANGO_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',
+    'rest_framework.authtoken',
 ]
-
+    
 THIRD_PARTY_APPS = [
     'rest_framework',
     'corsheaders',

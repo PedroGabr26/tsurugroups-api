@@ -79,7 +79,7 @@ urlpatterns = [
     # path('groups/mention/', views.MentionParticipantsView.as_view(), name="mention_participants"),
     path('dashboard/summary/', views.dashboard_summary, name='dashboard_summary'),
     path('instances/details/', views.get_instances_details, name='details_instances'),
-    path('last/activity/', views.campaings_details, name='details_campaings'),
+    path('campaigns/', views.campaings_details, name='details_campaings'),
     # Router URLs
     path('', include(router.urls)),
 ]
